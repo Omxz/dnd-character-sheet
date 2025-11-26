@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
   const isConfigured = isSupabaseConfigured();
 
   const supabase = createClient();
@@ -76,8 +77,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
+      setInitialized(true);
       return;
     }
+
+    // Only initialize once
+    if (initialized) return;
 
     const initAuth = async () => {
       try {
@@ -94,30 +99,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("Error initializing auth:", e);
       } finally {
         setLoading(false);
+        setInitialized(true);
       }
     };
 
     initAuth();
 
-    // Listen for auth changes
+    // Listen for auth changes (sign in, sign out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event: AuthChangeEvent, session: Session | null) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      async (event: AuthChangeEvent, session: Session | null) => {
+        // Only handle actual auth changes, not token refreshes
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+          setSession(session);
+          setUser(session?.user ?? null);
 
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id, session.user.email);
-          setProfile(profile);
-        } else {
-          setProfile(null);
+          if (session?.user) {
+            const profile = await fetchProfile(session.user.id, session.user.email);
+            setProfile(profile);
+          } else {
+            setProfile(null);
+          }
         }
-
-        setLoading(false);
       }
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [initialized]);
 
   const signIn = async (email: string, password: string) => {
     if (!supabase) return { error: new Error("Supabase not configured") };
