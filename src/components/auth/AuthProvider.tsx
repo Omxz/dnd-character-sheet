@@ -30,17 +30,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
 
-  // Fetch user profile
-  const fetchProfile = async (userId: string) => {
+  // Fetch user profile (create if doesn't exist)
+  const fetchProfile = async (userId: string, email?: string) => {
     if (!supabase) return null;
     
-    const { data, error } = await supabase
-      .from("profiles")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from("profiles") as any)
       .select("*")
       .eq("id", userId)
       .single();
 
     if (error) {
+      // Profile doesn't exist, try to create it
+      if (error.code === "PGRST116" && email) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: newProfile, error: insertError } = await (supabase.from("profiles") as any)
+          .insert({ id: userId, email })
+          .select()
+          .single();
+        
+        if (insertError) {
+          console.error("Error creating profile:", insertError);
+          return null;
+        }
+        return newProfile;
+      }
       console.error("Error fetching profile:", error);
       return null;
     }
@@ -62,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const profile = await fetchProfile(session.user.id);
+        const profile = await fetchProfile(session.user.id, session.user.email);
         setProfile(profile);
       }
 
@@ -78,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
+          const profile = await fetchProfile(session.user.id, session.user.email);
           setProfile(profile);
         } else {
           setProfile(null);
