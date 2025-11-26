@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { getSpells, getSpellsForClass, buildKey } from "@/lib/data/loader";
+import { getSpells, buildKey } from "@/lib/data/loader";
 import type { StepProps } from "../types";
 import { cn } from "@/lib/utils";
 import { Check, Sparkles, Search } from "lucide-react";
@@ -96,13 +96,13 @@ export function SpellsStep({ data, updateData }: StepProps) {
     };
 
     const info = spellcastingInfo[className];
-    if (!info) {
+    if (!info || (info.cantrips === 0 && info.spells === 0)) {
       return { isSpellcaster: false, cantripsLimit: 0, spellsLimit: 0, availableSpells: [] };
     }
 
-    // Get spells for this class
-    const classSpells = getSpellsForClass(className);
-    const processed = classSpells
+    // Get all spells (XPHB 2024 uses unified spell lists)
+    const allSpells = getSpells();
+    const processed = allSpells
       .filter(s => s.level <= 1) // Only cantrips and 1st level
       .map(s => processSpell(s));
 

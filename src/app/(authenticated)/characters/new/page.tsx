@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/components/auth";
+import { createClient } from "@/lib/supabase/client";
 import { ChevronLeft, ChevronRight, Check, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getModifier } from "@/lib/utils";
 
 // Types
 import type { CharacterData, StepProps } from "./types";
@@ -20,6 +21,17 @@ import { EquipmentStep } from "./steps/EquipmentStep";
 import { SpellsStep } from "./steps/SpellsStep";
 import { DescriptionStep } from "./steps/DescriptionStep";
 import { ReviewStep } from "./steps/ReviewStep";
+
+// Get hit die for a class
+function getHitDie(classKey: string): number {
+  const className = classKey.split("|")[0].replace(/-/g, " ").toLowerCase();
+  const hitDice: Record<string, number> = {
+    barbarian: 12, fighter: 10, paladin: 10, ranger: 10,
+    bard: 8, cleric: 8, druid: 8, monk: 8, rogue: 8, warlock: 8,
+    sorcerer: 6, wizard: 6,
+  };
+  return hitDice[className] || 8;
+}
 
 const STEPS = [
   { id: "race", title: "Race", component: RaceStep },
@@ -103,15 +115,73 @@ export default function CharacterCreationWizard() {
   };
 
   const handleSave = async () => {
+    if (!user) {
+      console.error("No user logged in");
+      return;
+    }
+
     setSaving(true);
-    // TODO: Save to Supabase
-    console.log("Saving character:", characterData);
     
-    // Simulate save
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setSaving(false);
-    router.push("/characters");
+    try {
+      const supabase = createClient();
+      if (!supabase) {
+        throw new Error("Supabase not configured");
+      }
+
+      // Calculate HP
+      const hitDie = characterData.class_levels.length > 0 
+        ? getHitDie(characterData.class_levels[0].class) 
+        : 8;
+      const conMod = getModifier(characterData.ability_scores.constitution);
+      const maxHP = hitDie + conMod;
+      const totalLevel = characterData.class_levels.reduce((sum, cl) => sum + cl.level, 0) || 1;
+
+      // Prepare character data for database
+      const characterToSave = {
+        user_id: user.id,
+        name: characterData.name || "Unnamed Character",
+        level: totalLevel,
+        race_key: characterData.race_key,
+        subrace_key: characterData.subrace_key,
+        class_levels: characterData.class_levels,
+        background_key: characterData.background_key,
+        ability_scores: characterData.ability_scores,
+        current_hp: maxHP,
+        max_hp: maxHP,
+        temp_hp: 0,
+        spells_known: characterData.spells_known,
+        skill_proficiencies: characterData.skill_proficiencies,
+        saving_throw_proficiencies: characterData.saving_throw_proficiencies,
+        tool_proficiencies: characterData.tool_proficiencies,
+        languages: characterData.languages,
+        feats: characterData.feats,
+        equipment: characterData.equipment,
+        personality_traits: characterData.personality_traits || null,
+        ideals: characterData.ideals || null,
+        bonds: characterData.bonds || null,
+        flaws: characterData.flaws || null,
+        backstory: characterData.backstory || null,
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from("characters") as any)
+        .insert(characterToSave)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error saving character:", error);
+        throw error;
+      }
+
+      console.log("Character saved:", data);
+      router.push("/characters");
+    } catch (error) {
+      console.error("Failed to save character:", error);
+      alert("Failed to save character. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (authLoading) {
