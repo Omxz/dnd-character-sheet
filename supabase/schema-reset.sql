@@ -205,18 +205,16 @@ CREATE POLICY "Users can delete their own characters"
   USING (auth.uid() = user_id);
 
 -- Parties policies
-CREATE POLICY "Users can view parties they own"
-  ON public.parties FOR SELECT
-  USING (auth.uid() = owner_id);
-
-CREATE POLICY "Users can view parties they are members of"
+CREATE POLICY "Users can view parties they own or are members of"
   ON public.parties FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM public.party_members pm
+    auth.uid() = owner_id
+    OR
+    id IN (
+      SELECT pm.party_id 
+      FROM public.party_members pm
       JOIN public.characters c ON pm.character_id = c.id
-      WHERE pm.party_id = parties.id
-      AND c.user_id = auth.uid()
+      WHERE c.user_id = auth.uid()
     )
   );
 
@@ -236,21 +234,22 @@ CREATE POLICY "Owners can delete their parties"
   ON public.parties FOR DELETE
   USING (auth.uid() = owner_id);
 
--- Party members policies
+-- Party members policies (avoid self-referencing to prevent infinite recursion)
 CREATE POLICY "Users can view party members"
   ON public.party_members FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM public.party_members pm
-      JOIN public.characters c ON pm.character_id = c.id
-      WHERE pm.party_id = party_members.party_id
-      AND c.user_id = auth.uid()
-    )
-    OR
+    -- User owns the party
     EXISTS (
       SELECT 1 FROM public.parties p
       WHERE p.id = party_members.party_id
       AND p.owner_id = auth.uid()
+    )
+    OR
+    -- User owns the character being viewed
+    EXISTS (
+      SELECT 1 FROM public.characters c
+      WHERE c.id = party_members.character_id
+      AND c.user_id = auth.uid()
     )
   );
 
