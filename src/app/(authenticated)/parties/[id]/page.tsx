@@ -334,6 +334,13 @@ export default function PartyDetailPage() {
                     <span>{member.character.max_hp} HP</span>
                   </div>
                 </div>
+
+                <Link
+                  href={`/characters/${member.character.id}`}
+                  className="mt-3 block w-full text-center py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm"
+                >
+                  View Character
+                </Link>
               </div>
             ))}
           </div>
