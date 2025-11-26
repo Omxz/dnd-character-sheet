@@ -159,8 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return { error: new Error("Not authenticated") };
     if (!supabase) return { error: new Error("Supabase not configured") };
 
-    const { error } = await supabase
-      .from("profiles")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.from("profiles") as any)
       .update(updates)
       .eq("id", user.id);
 
