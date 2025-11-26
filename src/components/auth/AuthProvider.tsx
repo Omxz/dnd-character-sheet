@@ -34,32 +34,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async (userId: string, email?: string) => {
     if (!supabase) return null;
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase.from("profiles") as any)
-      .select("*")
-      .eq("id", userId)
-      .single();
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from("profiles") as any)
+        .select("*")
+        .eq("id", userId)
+        .single();
 
-    if (error) {
-      // Profile doesn't exist, try to create it
-      if (error.code === "PGRST116" && email) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: newProfile, error: insertError } = await (supabase.from("profiles") as any)
-          .insert({ id: userId, email })
-          .select()
-          .single();
-        
-        if (insertError) {
-          console.error("Error creating profile:", insertError);
-          return null;
+      if (error) {
+        // Profile doesn't exist, try to create it
+        if (error.code === "PGRST116" && email) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: newProfile, error: insertError } = await (supabase.from("profiles") as any)
+              .insert({ id: userId, email })
+              .select()
+              .single();
+            
+            if (insertError) {
+              console.error("Error creating profile:", insertError);
+              return null;
+            }
+            return newProfile;
+          } catch (e) {
+            console.error("Exception creating profile:", e);
+            return null;
+          }
         }
-        return newProfile;
+        console.error("Error fetching profile:", error);
+        return null;
       }
-      console.error("Error fetching profile:", error);
+
+      return data;
+    } catch (e) {
+      console.error("Exception fetching profile:", e);
       return null;
     }
-
-    return data;
   };
 
   // Initialize auth state
@@ -70,17 +80,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      setSession(session);
-      setUser(session?.user ?? null);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        setSession(session);
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id, session.user.email);
-        setProfile(profile);
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id, session.user.email);
+          setProfile(profile);
+        }
+      } catch (e) {
+        console.error("Error initializing auth:", e);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     initAuth();

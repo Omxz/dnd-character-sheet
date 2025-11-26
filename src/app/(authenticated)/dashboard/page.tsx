@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Plus, Scroll, Users, Dices } from "lucide-react";
 
 export default function DashboardPage() {
-  const { profile, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -16,12 +16,15 @@ export default function DashboardPage() {
     );
   }
 
+  // Get display name from profile, user email, or fallback
+  const displayName = profile?.display_name || user?.email?.split("@")[0] || "Adventurer";
+
   return (
     <div className="space-y-8">
       {/* Welcome Header */}
       <div>
         <h1 className="text-3xl font-bold text-white">
-          Welcome back, {profile?.display_name || profile?.email?.split("@")[0] || "Adventurer"}!
+          Welcome back, {displayName}!
         </h1>
         <p className="text-gray-400 mt-2">
           Ready for your next adventure?
