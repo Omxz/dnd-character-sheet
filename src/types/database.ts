@@ -51,9 +51,9 @@ export interface Database {
           level: number;
           race_key: string;
           subrace_key: string | null;
-          class_levels: Json;
+          class_levels: ClassLevel[];
           background_key: string;
-          ability_scores: Json;
+          ability_scores: AbilityScores;
           current_hp: number;
           max_hp: number;
           temp_hp: number;
@@ -64,10 +64,10 @@ export interface Database {
           tool_proficiencies: string[];
           languages: string[];
           feats: string[];
-          spells_known: Json;
+          spells_known: SpellsKnown;
           spells_prepared: string[];
-          equipment: Json;
-          currency: Json;
+          equipment: Equipment[];
+          currency: Currency;
           personality_traits: string | null;
           ideals: string | null;
           bonds: string | null;
@@ -75,7 +75,16 @@ export interface Database {
           backstory: string | null;
           notes: Json;
           conditions: string[];
-          death_saves: Json;
+          death_saves: DeathSaves;
+          // New fields
+          inspiration: boolean;
+          exhaustion: number;
+          xp: number;
+          avatar_url: string | null;
+          concentration_spell: string | null;
+          class_feature_choices: ClassFeatureChoices;
+          feature_uses: FeatureUses;
+          appearance: CharacterAppearance;
           created_at: string;
           updated_at: string;
         };
@@ -88,9 +97,9 @@ export interface Database {
           level?: number;
           race_key: string;
           subrace_key?: string | null;
-          class_levels: Json;
+          class_levels: ClassLevel[];
           background_key: string;
-          ability_scores: Json;
+          ability_scores: AbilityScores;
           current_hp?: number;
           max_hp?: number;
           temp_hp?: number;
@@ -101,10 +110,10 @@ export interface Database {
           tool_proficiencies?: string[];
           languages?: string[];
           feats?: string[];
-          spells_known?: Json;
+          spells_known?: SpellsKnown;
           spells_prepared?: string[];
-          equipment?: Json;
-          currency?: Json;
+          equipment?: Equipment[];
+          currency?: Currency;
           personality_traits?: string | null;
           ideals?: string | null;
           bonds?: string | null;
@@ -112,7 +121,16 @@ export interface Database {
           backstory?: string | null;
           notes?: Json;
           conditions?: string[];
-          death_saves?: Json;
+          death_saves?: DeathSaves;
+          // New fields
+          inspiration?: boolean;
+          exhaustion?: number;
+          xp?: number;
+          avatar_url?: string | null;
+          concentration_spell?: string | null;
+          class_feature_choices?: ClassFeatureChoices;
+          feature_uses?: FeatureUses;
+          appearance?: CharacterAppearance;
           created_at?: string;
           updated_at?: string;
         };
@@ -125,9 +143,9 @@ export interface Database {
           level?: number;
           race_key?: string;
           subrace_key?: string | null;
-          class_levels?: Json;
+          class_levels?: ClassLevel[];
           background_key?: string;
-          ability_scores?: Json;
+          ability_scores?: AbilityScores;
           current_hp?: number;
           max_hp?: number;
           temp_hp?: number;
@@ -138,10 +156,10 @@ export interface Database {
           tool_proficiencies?: string[];
           languages?: string[];
           feats?: string[];
-          spells_known?: Json;
+          spells_known?: SpellsKnown;
           spells_prepared?: string[];
-          equipment?: Json;
-          currency?: Json;
+          equipment?: Equipment[];
+          currency?: Currency;
           personality_traits?: string | null;
           ideals?: string | null;
           bonds?: string | null;
@@ -149,7 +167,16 @@ export interface Database {
           backstory?: string | null;
           notes?: Json;
           conditions?: string[];
-          death_saves?: Json;
+          death_saves?: DeathSaves;
+          // New fields
+          inspiration?: boolean;
+          exhaustion?: number;
+          xp?: number;
+          avatar_url?: string | null;
+          concentration_spell?: string | null;
+          class_feature_choices?: ClassFeatureChoices;
+          feature_uses?: FeatureUses;
+          appearance?: CharacterAppearance;
           created_at?: string;
           updated_at?: string;
         };
@@ -285,4 +312,44 @@ export interface Note {
 export interface DeathSaves {
   successes: number;
   failures: number;
+}
+
+// New types for comprehensive character management
+export interface ClassFeatureChoices {
+  fighting_style?: string;
+  expertise?: string[];
+  metamagic?: string[];
+  eldritch_invocations?: string[];
+  maneuvers?: string[];
+  infusions?: string[];
+  pact_boon?: string;
+  divine_domain?: string;
+  arcane_tradition?: string;
+  [key: string]: string | string[] | undefined;
+}
+
+export interface FeatureUse {
+  used: number;
+  max: number;
+}
+
+export interface FeatureUses {
+  [featureName: string]: FeatureUse;
+}
+
+export interface CharacterAppearance {
+  age?: string;
+  height?: string;
+  weight?: string;
+  eyes?: string;
+  skin?: string;
+  hair?: string;
+}
+
+// Equipment type for the Row (simpler version for JSON storage)
+export interface Equipment {
+  name: string;
+  quantity: number;
+  equipped?: boolean;
+  attuned?: boolean;
 }

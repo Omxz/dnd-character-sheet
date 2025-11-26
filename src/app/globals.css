@@ -96,3 +96,233 @@ body {
     #2d2a26 100%
   );
 }
+
+/* Enhanced dark fantasy theme */
+.bg-gray-850 {
+  background-color: #1a1a1f;
+}
+
+.border-gray-850 {
+  border-color: #1a1a1f;
+}
+
+/* Glow effects */
+.glow-amber {
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+}
+
+.glow-purple {
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+}
+
+.glow-red {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+}
+
+/* Animated gradient background */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+/* Stat block styling */
+.stat-block {
+  @apply bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl border border-gray-700;
+  @apply shadow-lg;
+}
+
+.stat-block-header {
+  @apply bg-gradient-to-r from-amber-900/30 to-transparent px-4 py-2 rounded-t-xl border-b border-amber-900/30;
+}
+
+/* Character card hover effect */
+.character-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.character-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Dice result animation */
+@keyframes result-pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-result-pop {
+  animation: result-pop 0.3s ease-out;
+}
+
+/* Critical hit flash */
+@keyframes crit-flash {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(34, 197, 94, 0.3);
+  }
+}
+
+.animate-crit {
+  animation: crit-flash 0.5s ease-in-out 2;
+}
+
+/* Critical fail flash */
+@keyframes fail-flash {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(239, 68, 68, 0.3);
+  }
+}
+
+.animate-fail {
+  animation: fail-flash 0.5s ease-in-out 2;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 10pt;
+  }
+
+  /* Hide non-essential elements */
+  .no-print,
+  button,
+  nav,
+  .navigation,
+  header > button,
+  [class*="hover:"] {
+    display: none !important;
+  }
+
+  /* Reset backgrounds for print */
+  .bg-gray-800,
+  .bg-gray-900,
+  .bg-gradient-to-r,
+  .bg-gradient-to-b,
+  .bg-gradient-to-br {
+    background: white !important;
+    border: 1px solid #ccc !important;
+  }
+
+  /* Text colors for print */
+  .text-gray-400,
+  .text-gray-500,
+  .text-gray-300 {
+    color: #666 !important;
+  }
+
+  .text-white,
+  .text-gray-100,
+  .text-gray-200 {
+    color: black !important;
+  }
+
+  .text-amber-400,
+  .text-amber-500 {
+    color: #92400e !important;
+  }
+
+  /* Page breaks */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid;
+  }
+
+  /* Character sheet specific print layout */
+  .character-sheet {
+    display: block !important;
+  }
+
+  .character-sheet > div {
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 1rem;
+  }
+
+  /* Collapsible sections should be open */
+  details {
+    display: block !important;
+  }
+
+  details > summary {
+    display: none !important;
+  }
+
+  details > *:not(summary) {
+    display: block !important;
+  }
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Disabled smooth transitions for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visible styles */
+:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+/* Selection colors */
+::selection {
+  background-color: rgba(245, 158, 11, 0.3);
+  color: white;
+}
+
+/* Input styling */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
