@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* D&D themed colors */
+.text-dnd-red {
+  color: #c41e3a;
+}
+
+.bg-dnd-red {
+  background-color: #c41e3a;
+}
+
+.border-dnd-red {
+  border-color: #c41e3a;
+}
+
+/* Dice animation keyframes */
+@keyframes dice-roll {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(90deg) scale(1.1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1);
+  }
+  75% {
+    transform: rotate(270deg) scale(1.1);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-dice-roll {
+  animation: dice-roll 0.5s ease-in-out;
+}
+
+/* Parchment background effect */
+.bg-parchment {
+  background: linear-gradient(
+    135deg,
+    #f5e6d3 0%,
+    #f0dcc5 25%,
+    #e8d4b8 50%,
+    #f0dcc5 75%,
+    #f5e6d3 100%
+  );
+}
+
+/* Dark parchment for dark mode */
+.dark .bg-parchment {
+  background: linear-gradient(
+    135deg,
+    #2d2a26 0%,
+    #3d3830 25%,
+    #2d2a26 50%,
+    #3d3830 75%,
+    #2d2a26 100%
+  );
+}
