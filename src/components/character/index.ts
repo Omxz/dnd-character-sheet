@@ -5,6 +5,7 @@ export * from "./AvatarUpload";
 export * from "./CollapsibleSection";
 export * from "./ConditionBadge";
 export * from "./DiceButton";
+export * from "./EquipmentManager";
 export * from "./FeatureCard";
 export * from "./FeatureChoiceModal";
 export * from "./HPBar";

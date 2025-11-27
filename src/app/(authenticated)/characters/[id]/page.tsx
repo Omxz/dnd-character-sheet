@@ -48,6 +48,7 @@ import {
   LevelUpModal,
   ResourceTracker,
   FeatureChoiceModal,
+  EquipmentManager,
 } from "@/components/character";
 import { getFeatureChoicesForClass } from "@/lib/feature-choices";
 
@@ -950,32 +951,11 @@ export default function CharacterDetailPage() {
             badge={character.equipment?.filter(i => i?.name || i?.item_key)?.length || 0}
             defaultOpen={true}
           >
-            <div className="space-y-1">
-              {character.equipment?.filter(item => item?.name || item?.item_key).map((item, index) => {
-                // Convert item_key back to display name if name is not present
-                const displayName = item.name || (item.item_key 
-                  ? item.item_key
-                      .split("-")
-                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                      .join(" ")
-                  : "Unknown Item");
-                
-                return (
-                  <div
-                    key={index}
-                    className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-800/50"
-                  >
-                    <span className="text-gray-300">{displayName}</span>
-                    {item.quantity > 1 && (
-                      <span className="text-gray-500 text-sm">×{item.quantity}</span>
-                    )}
-                  </div>
-                );
-              })}
-              {(!character.equipment || character.equipment.filter(i => i?.name || i?.item_key).length === 0) && (
-                <p className="text-gray-500 text-sm py-2">No equipment</p>
-              )}
-            </div>
+            <EquipmentManager
+              equipment={character.equipment || []}
+              onChange={(newEquipment) => updateCharacter({ equipment: newEquipment })}
+              readonly={!isOwner}
+            />
           </CollapsibleSection>
         </div>
 

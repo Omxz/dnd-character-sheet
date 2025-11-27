@@ -348,7 +348,8 @@ export interface CharacterAppearance {
 
 // Equipment type for the Row (simpler version for JSON storage)
 export interface Equipment {
-  name: string;
+  name?: string;
+  item_key?: string;
   quantity: number;
   equipped?: boolean;
   attuned?: boolean;

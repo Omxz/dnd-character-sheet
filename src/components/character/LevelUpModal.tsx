@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { 
-  ChevronRight, 
-  ChevronLeft, 
-  Sparkles, 
-  Award, 
+import {
+  ChevronRight,
+  ChevronLeft,
+  Sparkles,
+  Award,
   BookOpen,
   Star,
   Check,
@@ -20,6 +20,10 @@ import {
   Dices
 } from "lucide-react";
 import { getClassData, getSubclasses, getClassFeatures, getSpellsForClass } from "@/lib/data";
+import { FeatPicker } from "./FeatPicker";
+import { applyFeatAbilityBonus, parseFeatKey, getFeats, type FeatData } from "@/lib/feats";
+import { getNewFeatureChoicesAtLevel, type FeatureChoice } from "@/lib/feature-choices";
+import { FeatureChoiceContent } from "./FeatureChoiceModal";
 
 interface ClassFeature {
   name: string;
@@ -48,6 +52,8 @@ interface LevelUpModalProps {
     };
     max_hp: number;
     spells_known?: { cantrips: string[]; spells: string[] };
+    feats?: string[];
+    class_feature_choices?: Record<string, string | string[]>;
   };
   onLevelUp: (updates: {
     level: number;
@@ -62,6 +68,8 @@ interface LevelUpModalProps {
       charisma: number;
     };
     spells_known?: { cantrips: string[]; spells: string[] };
+    feats?: string[];
+    class_feature_choices?: Record<string, string | string[]>;
   }) => Promise<void>;
 }
 
@@ -109,12 +117,16 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
   const [hpMethod, setHpMethod] = useState<"roll" | "average" | null>(null);
   const [asiChoice, setAsiChoice] = useState<"asi" | "feat" | null>(null);
   const [asiBoosts, setAsiBoosts] = useState<Record<string, number>>({});
+  const [selectedFeat, setSelectedFeat] = useState<string | null>(null);
   const [newSpells, setNewSpells] = useState<string[]>([]);
   const [newCantrips, setNewCantrips] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [featuresAtLevel, setFeaturesAtLevel] = useState<ClassFeature[]>([]);
   const [subclassOptions, setSubclassOptions] = useState<Array<{ name: string; shortName: string; source: string }>>([]);
   const [availableSpells, setAvailableSpells] = useState<Array<{ name: string; level: number }>>([]);
+  const [allFeats, setAllFeats] = useState<FeatData[]>([]);
+  const [featureChoicesAtLevel, setFeatureChoicesAtLevel] = useState<FeatureChoice[]>([]);
+  const [featureChoiceSelections, setFeatureChoiceSelections] = useState<Record<string, string | string[]>>({});
 
   // Calculate level info
   const currentLevel = character.level;
@@ -214,6 +226,28 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
       }
     }
 
+    // Load feats for feat selection
+    if (isAsiLevel) {
+      try {
+        const feats = getFeats();
+        setAllFeats(feats);
+      } catch (err) {
+        console.error("Error loading feats:", err);
+      }
+    }
+
+    // Load feature choices for this level
+    try {
+      const choices = getNewFeatureChoicesAtLevel(
+        primaryClassName,
+        newClassLevel,
+        primaryClass?.subclass
+      );
+      setFeatureChoicesAtLevel(choices);
+    } catch (err) {
+      console.error("Error loading feature choices:", err);
+    }
+
     // Reset state
     setStep(0);
     setSelectedSubclass(null);
@@ -221,9 +255,11 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
     setHpMethod(null);
     setAsiChoice(null);
     setAsiBoosts({});
+    setSelectedFeat(null);
     setNewSpells([]);
     setNewCantrips([]);
-  }, [isOpen, primaryClassName, newClassLevel, needsSubclass, isSpellcaster, newCantripsCount, newSpellsCount, maxSpellLevelAtNew]);
+    setFeatureChoiceSelections({});
+  }, [isOpen, primaryClassName, newClassLevel, needsSubclass, isSpellcaster, newCantripsCount, newSpellsCount, maxSpellLevelAtNew, isAsiLevel]);
 
   // Build step list
   const steps = useMemo(() => {
@@ -239,6 +275,10 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
       s.push({ id: "subclass", label: "Subclass", icon: <Shield className="w-4 h-4" /> });
     }
 
+    if (featureChoicesAtLevel.length > 0) {
+      s.push({ id: "feature-choices", label: "Choices", icon: <BookOpen className="w-4 h-4" /> });
+    }
+
     s.push({ id: "hp", label: "HP", icon: <Heart className="w-4 h-4" /> });
 
     if (isAsiLevel) {
@@ -252,7 +292,7 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
     s.push({ id: "confirm", label: "Confirm", icon: <Check className="w-4 h-4" /> });
 
     return s;
-  }, [featuresAtLevel.length, needsSubclass, isAsiLevel, newCantripsCount, newSpellsCount, newSpellLevel]);
+  }, [featuresAtLevel.length, needsSubclass, featureChoicesAtLevel.length, isAsiLevel, newCantripsCount, newSpellsCount, newSpellLevel]);
 
   const currentStepData = steps[step];
 
@@ -304,9 +344,12 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
     switch (currentStepData.id) {
       case "subclass": return !!selectedSubclass;
       case "hp": return hpRoll !== null;
-      case "asi": return asiChoice === "feat" || (asiChoice === "asi" && asiTotal === 2);
+      case "asi":
+        if (asiChoice === "feat") return !!selectedFeat;
+        if (asiChoice === "asi") return asiTotal === 2;
+        return false;
       case "spells":
-        return newCantrips.length === newCantripsCount && 
+        return newCantrips.length === newCantripsCount &&
                (newSpellsCount === 0 || newSpells.length === newSpellsCount);
       default: return true;
     }
@@ -333,6 +376,22 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
           newScores[key] = Math.min(20, newScores[key] + boost);
         }
         updates.ability_scores = newScores;
+      }
+
+      if (isAsiLevel && asiChoice === "feat" && selectedFeat) {
+        // Add feat to character's feats array
+        const currentFeats = character.feats || [];
+        updates.feats = [...currentFeats, selectedFeat];
+
+        // Apply any ability score bonuses from the feat
+        const { name } = parseFeatKey(selectedFeat);
+        const featData = allFeats.find((f) => f.name.toLowerCase() === name.toLowerCase());
+        if (featData) {
+          const newScores = applyFeatAbilityBonus(featData, character.ability_scores);
+          if (JSON.stringify(newScores) !== JSON.stringify(character.ability_scores)) {
+            updates.ability_scores = newScores;
+          }
+        }
       }
 
       if (newCantrips.length > 0 || newSpells.length > 0) {
@@ -648,11 +707,16 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
               )}
 
               {asiChoice === "feat" && (
-                <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                  <p className="text-gray-400 text-sm">
-                    Feat selection will be available in the character edit page. For now, your ASI is marked as a feat choice.
-                  </p>
-                </div>
+                <FeatPicker
+                  character={{
+                    level: newLevel,
+                    ability_scores: character.ability_scores,
+                    feats: character.feats,
+                    class_levels: character.class_levels,
+                  }}
+                  selectedFeat={selectedFeat}
+                  onSelect={setSelectedFeat}
+                />
               )}
             </div>
           )}
