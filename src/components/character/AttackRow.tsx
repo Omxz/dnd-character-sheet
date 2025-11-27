@@ -77,11 +77,13 @@ export function AttackRow({
           "bg-gray-800 hover:bg-gray-700",
           "border border-gray-700 hover:border-red-500/50",
           "font-mono font-medium text-gray-300 group-hover:text-red-400",
-          "transition-colors"
+          "transition-colors",
+          "flex items-center gap-1.5"
         )}
       >
-        <Crosshair className="w-3 h-3 mr-1.5 inline" />
-        {atkStr}
+        <Crosshair className="w-3 h-3" />
+        <span className="text-xs text-gray-500">ATK</span>
+        <span>{atkStr}</span>
       </DiceButton>
 
       {/* Damage roll */}
@@ -90,15 +92,17 @@ export function AttackRow({
         label={`${name} Damage`}
         onRoll={(result) => onDamageRoll?.(result)}
         className={cn(
-          "px-3 py-1.5 rounded min-w-[80px] text-center",
+          "px-3 py-1.5 rounded min-w-[100px]",
           "bg-gray-800 hover:bg-gray-700",
           "border border-gray-700 hover:border-red-500/50",
           "text-gray-300 group-hover:text-red-400",
-          "transition-colors"
+          "transition-colors",
+          "flex items-center gap-1.5"
         )}
       >
+        <span className="text-xs text-gray-500">DMG</span>
         <span className="font-mono">{damage}</span>
-        <span className="text-xs text-gray-500 ml-1">{damageType}</span>
+        <span className="text-xs text-gray-500">{damageType}</span>
       </DiceButton>
     </div>
   );

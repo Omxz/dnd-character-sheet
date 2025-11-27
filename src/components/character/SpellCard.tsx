@@ -16,7 +16,8 @@ import {
   BookOpen,
   Check,
   X,
-  ArrowUp
+  ArrowUp,
+  Dices
 } from "lucide-react";
 
 const SPELL_SCHOOLS: Record<string, { color: string; icon: React.ReactNode }> = {
@@ -222,19 +223,19 @@ export function SpellCard({
                   <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-red-900/30 border border-red-700/50">
                     <Zap className="w-3 h-3 text-red-400" />
                     <span className="text-xs text-red-300">
-                      {attackType === "melee" ? "Melee" : "Ranged"} Attack +{spellAttackBonus}
+                      {attackType === "melee" ? "Melee" : "Ranged"} Attack
                     </span>
-                    {onRollAttack && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRollAttack(spellAttackBonus);
-                        }}
-                        className="ml-1 px-1.5 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs"
-                      >
-                        Roll
-                      </button>
-                    )}
+                    <DiceButton
+                      diceFormula={`1d20+${spellAttackBonus}`}
+                      label={`${name} Attack`}
+                      onRoll={(result, breakdown) => {
+                        onRollAttack?.(spellAttackBonus);
+                      }}
+                      className="ml-1 px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-medium"
+                      showIcon
+                    >
+                      +{spellAttackBonus}
+                    </DiceButton>
                   </div>
                 )}
                 {savingThrow && (
@@ -249,19 +250,19 @@ export function SpellCard({
                   <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-orange-900/30 border border-orange-700/50">
                     <Zap className="w-3 h-3 text-orange-400" />
                     <span className="text-xs text-orange-300">
-                      {damage} {damageType || "damage"}
+                      {damageType || "damage"}
                     </span>
-                    {onRollDamage && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRollDamage(damage, damageType || "damage");
-                        }}
-                        className="ml-1 px-1.5 py-0.5 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs"
-                      >
-                        Roll
-                      </button>
-                    )}
+                    <DiceButton
+                      diceFormula={damage}
+                      label={`${name} Damage`}
+                      onRoll={(result, breakdown) => {
+                        onRollDamage?.(damage, damageType || "damage");
+                      }}
+                      className="ml-1 px-2 py-0.5 rounded bg-orange-600 hover:bg-orange-500 text-white text-xs font-medium"
+                      showIcon
+                    >
+                      {damage}
+                    </DiceButton>
                   </div>
                 )}
               </div>

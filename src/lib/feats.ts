@@ -13,7 +13,7 @@ export interface FeatData {
     feature?: string[]; // e.g., ["Fighting Style"]
     proficiency?: Array<{ [key: string]: string[] }>;
     race?: Array<{ name: string }>;
-    otherSummary?: string;
+    otherSummary?: string | { entry: string; entrySummary: string };
   }>;
   ability?: Array<
     | {
@@ -152,7 +152,11 @@ export function checkPrerequisites(
 
     // Check other prerequisites
     if (prereq.otherSummary) {
-      reasons.push(prereq.otherSummary);
+      if (typeof prereq.otherSummary === "string") {
+        reasons.push(prereq.otherSummary);
+      } else if (prereq.otherSummary.entry) {
+        reasons.push(prereq.otherSummary.entry);
+      }
     }
   }
 
@@ -193,7 +197,14 @@ export function formatFeatPrerequisites(feat: FeatData): string {
     }
 
     if (prereq.otherSummary) {
-      prereqParts.push(prereq.otherSummary);
+      // otherSummary is an object like {entry: "...", entrySummary: "..."}
+      if (typeof prereq.otherSummary === "string") {
+        prereqParts.push(prereq.otherSummary);
+      } else if (prereq.otherSummary.entry) {
+        prereqParts.push(prereq.otherSummary.entry);
+      } else if (prereq.otherSummary.entrySummary) {
+        prereqParts.push(prereq.otherSummary.entrySummary);
+      }
     }
 
     if (prereqParts.length > 0) {

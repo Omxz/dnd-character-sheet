@@ -1,8 +1,21 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Info, HelpCircle } from "lucide-react";
+
+// Spell slot level descriptions
+const SLOT_DESCRIPTIONS: Record<number, string> = {
+  1: "1st level spells like Shield, Magic Missile, Cure Wounds",
+  2: "2nd level spells like Hold Person, Misty Step, Scorching Ray",
+  3: "3rd level spells like Fireball, Counterspell, Fly",
+  4: "4th level spells like Greater Invisibility, Polymorph, Banishment",
+  5: "5th level spells like Hold Monster, Wall of Force, Raise Dead",
+  6: "6th level spells like Disintegrate, Chain Lightning, Heal",
+  7: "7th level spells like Teleport, Resurrection, Forcecage",
+  8: "8th level spells like Maze, Power Word Stun, Dominate Monster",
+  9: "9th level spells like Wish, Power Word Kill, Meteor Swarm",
+};
 
 interface SpellSlot {
   level: number;
@@ -56,19 +69,31 @@ export function SpellSlotTracker({
             className={cn(
               "flex items-center gap-3 p-2 rounded-lg",
               "bg-gray-900/50 border border-gray-800",
-              "hover:border-purple-500/30 transition-colors"
+              "hover:border-purple-500/30 transition-colors",
+              "group"
             )}
           >
-            {/* Level indicator */}
-            <div
-              className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center",
-                "bg-gradient-to-br from-purple-900 to-purple-950",
-                "border border-purple-700/50",
-                "text-sm font-bold text-purple-300"
-              )}
-            >
-              {level}
+            {/* Level indicator with tooltip */}
+            <div className="relative">
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  "bg-gradient-to-br from-purple-900 to-purple-950",
+                  "border border-purple-700/50",
+                  "text-sm font-bold text-purple-300",
+                  "cursor-help"
+                )}
+                title={SLOT_DESCRIPTIONS[level] || `Level ${level} spell slot`}
+              >
+                {level}
+              </div>
+              {/* Tooltip on hover */}
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-20 hidden group-hover:block">
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-2 text-xs text-gray-300 w-48 shadow-xl">
+                  <div className="font-medium text-purple-400 mb-1">Level {level} Slot</div>
+                  <div>{SLOT_DESCRIPTIONS[level] || `Cast ${level}${level === 1 ? 'st' : level === 2 ? 'nd' : level === 3 ? 'rd' : 'th'} level spells`}</div>
+                </div>
+              </div>
             </div>
 
             {/* Slot bubbles */}

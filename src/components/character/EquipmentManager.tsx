@@ -12,9 +12,12 @@ import {
   Shield,
   X,
   ChevronDown,
+  ChevronRight,
   Coins,
   Weight,
   Sparkles,
+  Check,
+  Info,
 } from "lucide-react";
 import {
   searchItems,
@@ -29,6 +32,8 @@ interface EquipmentItem {
   item_key?: string;
   name?: string;
   quantity: number;
+  equipped?: boolean;
+  attuned?: boolean;
 }
 
 interface EquipmentManagerProps {
@@ -124,6 +129,19 @@ export function EquipmentManager({
     (index: number) => {
       const newEquipment = [...equipment];
       newEquipment.splice(index, 1);
+      onChange(newEquipment);
+    },
+    [equipment, onChange]
+  );
+
+  // Toggle equipped status
+  const toggleEquipped = useCallback(
+    (index: number) => {
+      const newEquipment = [...equipment];
+      newEquipment[index] = {
+        ...newEquipment[index],
+        equipped: !newEquipment[index].equipped,
+      };
       onChange(newEquipment);
     },
     [equipment, onChange]
@@ -333,6 +351,7 @@ export function EquipmentManager({
             getDisplayName={getDisplayName}
             updateQuantity={updateQuantity}
             removeItem={removeItem}
+            toggleEquipped={toggleEquipped}
             readonly={readonly}
             equipment={equipment}
           />
@@ -347,6 +366,7 @@ export function EquipmentManager({
             getDisplayName={getDisplayName}
             updateQuantity={updateQuantity}
             removeItem={removeItem}
+            toggleEquipped={toggleEquipped}
             readonly={readonly}
             equipment={equipment}
           />
@@ -361,6 +381,7 @@ export function EquipmentManager({
             getDisplayName={getDisplayName}
             updateQuantity={updateQuantity}
             removeItem={removeItem}
+            toggleEquipped={toggleEquipped}
             readonly={readonly}
             equipment={equipment}
           />
@@ -375,6 +396,7 @@ export function EquipmentManager({
             getDisplayName={getDisplayName}
             updateQuantity={updateQuantity}
             removeItem={removeItem}
+            toggleEquipped={toggleEquipped}
             readonly={readonly}
             equipment={equipment}
           />
@@ -408,6 +430,7 @@ interface EquipmentSectionProps {
   getDisplayName: (item: EquipmentItem) => string;
   updateQuantity: (index: number, delta: number) => void;
   removeItem: (index: number) => void;
+  toggleEquipped: (index: number) => void;
   readonly: boolean;
   equipment: EquipmentItem[];
 }
@@ -419,10 +442,12 @@ function EquipmentSection({
   getDisplayName,
   updateQuantity,
   removeItem,
+  toggleEquipped,
   readonly,
   equipment,
 }: EquipmentSectionProps) {
   const [expanded, setExpanded] = useState(true);
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   return (
     <div>
@@ -450,72 +475,127 @@ function EquipmentSection({
             const formatted = item.data ? formatItem(item.data) : null;
             // Create unique key from item_key, name, or fallback to index
             const uniqueKey = item.item_key || item.name || `item-${itemIdx}`;
+            const isExpanded = expandedItem === uniqueKey;
 
             return (
-              <div
-                key={uniqueKey}
-                className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-800/50 group"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white truncate">
-                      {getDisplayName(item)}
-                    </span>
-                    {formatted?.rarity && (
-                      <span
-                        className={cn(
-                          "text-xs px-1.5 py-0.5 rounded shrink-0",
-                          formatted.rarity === "Common" && "bg-gray-600 text-gray-200",
-                          formatted.rarity === "Uncommon" && "bg-green-600/30 text-green-400",
-                          formatted.rarity === "Rare" && "bg-blue-600/30 text-blue-400",
-                          formatted.rarity === "Very rare" && "bg-purple-600/30 text-purple-400",
-                          formatted.rarity === "Legendary" && "bg-orange-600/30 text-orange-400"
-                        )}
-                      >
-                        {formatted.rarity}
-                      </span>
-                    )}
-                  </div>
-                  {formatted && (
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                      {formatted.damage && <span>{formatted.damage}</span>}
-                      {formatted.ac && <span>{formatted.ac}</span>}
-                      {formatted.weight && <span>{formatted.weight}</span>}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  {!readonly && (
+              <div key={uniqueKey} className="rounded-lg hover:bg-gray-800/30 transition-colors">
+                <div className="flex items-center justify-between p-2 group">
+                  {/* Expand button for items with descriptions */}
+                  {formatted?.description ? (
                     <button
-                      onClick={() => updateQuantity(index, -1)}
-                      className="p-1 text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => setExpandedItem(isExpanded ? null : uniqueKey)}
+                      className="p-1 text-gray-500 hover:text-gray-300 mr-1"
                     >
-                      <Minus className="w-4 h-4" />
+                      <ChevronRight className={cn("w-3 h-3 transition-transform", isExpanded && "rotate-90")} />
                     </button>
+                  ) : (
+                    <div className="w-5" />
                   )}
                   
-                  <span className="w-8 text-center text-gray-300">
-                    ×{item.quantity}
-                  </span>
-
+                  {/* Equipped Checkbox */}
                   {!readonly && (
-                    <>
+                    <button
+                      onClick={() => toggleEquipped(index)}
+                      className={cn(
+                        "w-5 h-5 rounded border-2 flex items-center justify-center mr-3 shrink-0 transition-colors",
+                        item.equipped
+                          ? "bg-green-500 border-green-500"
+                          : "border-gray-600 hover:border-gray-500"
+                      )}
+                      title={item.equipped ? "Equipped" : "Not equipped"}
+                    >
+                      {item.equipped && <Check className="w-3 h-3 text-white" />}
+                    </button>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={cn("truncate", item.equipped ? "text-white font-medium" : "text-gray-300")}>
+                        {getDisplayName(item)}
+                      </span>
+                      {formatted?.rarity && (
+                        <span
+                          className={cn(
+                            "text-xs px-1.5 py-0.5 rounded shrink-0",
+                            formatted.rarity === "Common" && "bg-gray-600 text-gray-200",
+                            formatted.rarity === "Uncommon" && "bg-green-600/30 text-green-400",
+                            formatted.rarity === "Rare" && "bg-blue-600/30 text-blue-400",
+                            formatted.rarity === "Very rare" && "bg-purple-600/30 text-purple-400",
+                            formatted.rarity === "Legendary" && "bg-orange-600/30 text-orange-400"
+                          )}
+                        >
+                          {formatted.rarity}
+                        </span>
+                      )}
+                    </div>
+                    {formatted && (
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                        {formatted.type && <span>{formatted.type}</span>}
+                        {formatted.damage && <span className="text-red-400">• {formatted.damage}</span>}
+                        {formatted.ac && <span className="text-blue-400">• {formatted.ac}</span>}
+                        {formatted.weight && <span>• {formatted.weight}</span>}
+                        {formatted.value && <span className="text-amber-400">• {formatted.value}</span>}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {!readonly && (
                       <button
-                        onClick={() => updateQuantity(index, 1)}
+                        onClick={() => updateQuantity(index, -1)}
                         className="p-1 text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Minus className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => removeItem(index)}
-                        className="p-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </>
-                  )}
+                    )}
+                    
+                    <span className="w-8 text-center text-gray-300">
+                      ×{item.quantity}
+                    </span>
+
+                    {!readonly && (
+                      <>
+                        <button
+                          onClick={() => updateQuantity(index, 1)}
+                          className="p-1 text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => removeItem(index)}
+                          className="p-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
+                
+                {/* Expanded item details */}
+                {isExpanded && formatted && (
+                  <div className="px-3 pb-3 ml-6 text-sm space-y-2">
+                    {formatted.properties.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {formatted.properties.map((prop, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-gray-800 rounded text-xs text-gray-400">
+                            {prop}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {formatted.attunement && (
+                      <div className="text-purple-400 text-xs italic">
+                        {formatted.attunement}
+                      </div>
+                    )}
+                    {formatted.description && (
+                      <p className="text-gray-400 text-xs leading-relaxed">
+                        {formatted.description}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

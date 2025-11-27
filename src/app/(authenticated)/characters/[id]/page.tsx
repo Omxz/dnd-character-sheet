@@ -6,6 +6,8 @@ import { getClassFeatures, getClassData } from "@/lib/data";
 import { getClassResources, calculateAC, calculateSpeed, getExtraAttacks, SPELLCASTING_ABILITY } from "@/lib/class-features";
 import { getSpell, formatComponents, getDamageAtLevel, type SpellData } from "@/lib/spells";
 import Link from "next/link";
+import { getItem, type Item } from "@/lib/items";
+import { getFeat } from "@/lib/feats";
 import { useParams } from "next/navigation";
 import { 
   ArrowLeft, 
@@ -73,7 +75,7 @@ interface Character {
   temp_hp?: number;
   skill_proficiencies: string[];
   saving_throw_proficiencies?: string[];
-  equipment: Array<{ item_key?: string; name?: string; quantity: number }>;
+  equipment: Array<{ item_key?: string; name?: string; quantity: number; equipped?: boolean }>;
   spells_known: { cantrips: string[]; spells: string[] };
   prepared_spells?: string[];
   spell_slots_used?: Record<number, number>;
@@ -97,6 +99,7 @@ interface Character {
   proficiency_bonus?: number;
   class_feature_choices?: Record<string, string | string[]>;
   feature_uses?: Record<string, { used: number; max: number }>;
+  feats?: string[];
 }
 
 export default function CharacterDetailPage() {
@@ -318,6 +321,145 @@ export default function CharacterDetailPage() {
 
   const getProficiencyBonus = (level: number) => Math.ceil(level / 4) + 1;
 
+  // Calculate feat-based resources (Lucky, etc.) - must be before early returns
+  const featResources = useMemo(() => {
+    if (!character) return [];
+    const resources: Array<{ name: string; shortName: string; max: number; rechargeOn: "short" | "long" | "dawn"; description: string }> = [];
+    const abilities = character.ability_scores;
+    
+    // Check for Lucky feat
+    if (character.feats?.some(f => f.toLowerCase().includes("lucky"))) {
+      resources.push({
+        name: "Luck Points",
+        shortName: "Luck",
+        max: 3,
+        rechargeOn: "long",
+        description: "Spend a Luck Point to roll an extra d20 for attacks, saves, or checks.",
+      });
+    }
+    
+    // Check for other feats with limited uses
+    if (character.feats?.some(f => f.toLowerCase().includes("chef"))) {
+      resources.push({
+        name: "Chef's Treats",
+        shortName: "Treats",
+        max: Math.max(1, Math.floor((abilities.constitution - 10) / 2) + character.level),
+        rechargeOn: "long",
+        description: "During a short rest, creatures who eat your treats regain extra HP.",
+      });
+    }
+    
+    if (character.feats?.some(f => f.toLowerCase().includes("healer"))) {
+      resources.push({
+        name: "Healer's Kit Uses",
+        shortName: "Healer",
+        max: 10,
+        rechargeOn: "long",
+        description: "Use healer's kit to restore 1d6+4+target's max HD in HP.",
+      });
+    }
+    
+    return resources;
+  }, [character]);
+
+  // Calculate AC based on equipped armor - must be before early returns
+  const acCalculation = useMemo(() => {
+    if (!character) return { calculatedAC: 10, acSource: "Unarmored", hasArmor: false, hasShield: false };
+    
+    const abilities = character.ability_scores;
+    const primaryClassName = character.class_levels?.[0]?.class.split("|")[0].toLowerCase() || "";
+    let baseAC = 10;
+    let source = "Unarmored";
+    let armor = false;
+    let shield = false;
+    const dexMod = Math.floor((abilities.dexterity - 10) / 2);
+    
+    // Check equipment for armor and shields
+    for (const equip of character.equipment || []) {
+      if (!equip.equipped) continue;
+      
+      const itemName = equip.name || equip.item_key || "";
+      const itemData = getItem(itemName);
+      
+      if (itemData) {
+        // Shield
+        if (itemData.type === "S" || itemName.toLowerCase().includes("shield")) {
+          shield = true;
+          baseAC += 2;
+          source = source === "Unarmored" ? "Shield" : source + " + Shield";
+        }
+        // Armor
+        else if (itemData.ac) {
+          armor = true;
+          if (itemData.type === "LA") {
+            baseAC = itemData.ac + dexMod;
+            source = itemData.name;
+          } else if (itemData.type === "MA") {
+            baseAC = itemData.ac + Math.min(2, dexMod);
+            source = itemData.name;
+          } else if (itemData.type === "HA") {
+            baseAC = itemData.ac;
+            source = itemData.name;
+          }
+        }
+      } else {
+        // Fallback detection by name
+        const lowerName = itemName.toLowerCase();
+        if (lowerName.includes("shield")) {
+          shield = true;
+          baseAC += 2;
+          source = source === "Unarmored" ? "Shield" : source + " + Shield";
+        } else if (lowerName.includes("plate")) {
+          armor = true;
+          baseAC = 18;
+          source = "Plate";
+        } else if (lowerName.includes("chain mail")) {
+          armor = true;
+          baseAC = 16;
+          source = "Chain Mail";
+        } else if (lowerName.includes("leather") && !lowerName.includes("studded")) {
+          armor = true;
+          baseAC = 11 + dexMod;
+          source = "Leather";
+        } else if (lowerName.includes("studded")) {
+          armor = true;
+          baseAC = 12 + dexMod;
+          source = "Studded Leather";
+        } else if (lowerName.includes("scale") || lowerName.includes("breastplate") || lowerName.includes("half plate")) {
+          armor = true;
+          const acValues: Record<string, number> = { "scale": 14, "breastplate": 14, "half plate": 15 };
+          const matchedKey = Object.keys(acValues).find(k => lowerName.includes(k));
+          baseAC = (matchedKey ? acValues[matchedKey] : 14) + Math.min(2, dexMod);
+          source = itemName;
+        }
+      }
+    }
+    
+    // Apply class-specific unarmored defense if not wearing armor
+    if (!armor) {
+      if (primaryClassName === "barbarian") {
+        const conMod = Math.floor((abilities.constitution - 10) / 2);
+        const unarmoredAC = 10 + dexMod + conMod + (shield ? 2 : 0);
+        if (unarmoredAC > baseAC) {
+          baseAC = unarmoredAC;
+          source = "Unarmored Defense" + (shield ? " + Shield" : "");
+        }
+      } else if (primaryClassName === "monk" && !shield) {
+        const wisMod = Math.floor((abilities.wisdom - 10) / 2);
+        const unarmoredAC = 10 + dexMod + wisMod;
+        if (unarmoredAC > baseAC) {
+          baseAC = unarmoredAC;
+          source = "Unarmored Defense";
+        }
+      } else if (!shield) {
+        baseAC = 10 + dexMod;
+        source = "Unarmored";
+      }
+    }
+    
+    return { calculatedAC: baseAC, acSource: source, hasArmor: armor, hasShield: shield };
+  }, [character]);
+
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -343,6 +485,9 @@ export default function CharacterDetailPage() {
     );
   }
 
+  // Extract values from memoized calculations
+  const { calculatedAC, acSource, hasArmor, hasShield } = acCalculation;
+
   const isOwner = character.user_id === user?.id;
   const profBonus = character.proficiency_bonus || getProficiencyBonus(character.level);
   const abilities = character.ability_scores;
@@ -359,16 +504,6 @@ export default function CharacterDetailPage() {
     primarySubclass,
     primaryClassLevel,
     abilities
-  );
-
-  // Calculate class-based AC
-  const { ac: calculatedAC, source: acSource } = calculateAC(
-    primaryClassName,
-    primaryClassLevel,
-    abilities,
-    character.armor_class || 10,
-    false, // hasArmor - would need to check equipment
-    false  // hasShield - would need to check equipment
   );
 
   // Calculate class-based speed  
@@ -816,23 +951,35 @@ export default function CharacterDetailPage() {
           </StatsGrid>
 
           {/* Class Resources (Ki, Rage, etc.) */}
-          {classResources.length > 0 && (
+          {(classResources.length > 0 || featResources.length > 0) && (
             <Card>
               <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">
-                Class Resources
+                Resources
               </h3>
               <ResourceTracker
-                resources={classResources.map(r => ({
-                  name: r.name,
-                  shortName: r.shortName,
-                  current: r.max - (character.feature_uses?.[r.name]?.used || 0),
-                  max: r.max,
-                  rechargeOn: r.rechargeOn as "short" | "long" | "dawn",
-                }))}
+                resources={[
+                  ...classResources.map(r => ({
+                    name: r.name,
+                    shortName: r.shortName,
+                    current: r.max - (character.feature_uses?.[r.name]?.used || 0),
+                    max: r.max,
+                    rechargeOn: r.rechargeOn as "short" | "long" | "dawn",
+                    description: r.description,
+                  })),
+                  ...featResources.map(r => ({
+                    name: r.name,
+                    shortName: r.shortName,
+                    current: r.max - (character.feature_uses?.[r.name]?.used || 0),
+                    max: r.max,
+                    rechargeOn: r.rechargeOn,
+                    description: r.description,
+                  })),
+                ]}
                 onUse={(resourceName) => {
                   if (!isOwner) return;
                   const current = character.feature_uses || {};
-                  const resource = current[resourceName] || { used: 0, max: classResources.find(r => r.name === resourceName)?.max || 1 };
+                  const allResources = [...classResources, ...featResources];
+                  const resource = current[resourceName] || { used: 0, max: allResources.find(r => r.name === resourceName)?.max || 1 };
                   updateCharacter({
                     feature_uses: {
                       ...current,
@@ -846,7 +993,8 @@ export default function CharacterDetailPage() {
                 onRecover={(resourceName, amount) => {
                   if (!isOwner) return;
                   const current = character.feature_uses || {};
-                  const resource = current[resourceName] || { used: 0, max: classResources.find(r => r.name === resourceName)?.max || 1 };
+                  const allResources = [...classResources, ...featResources];
+                  const resource = current[resourceName] || { used: 0, max: allResources.find(r => r.name === resourceName)?.max || 1 };
                   const recoverAmount = amount ?? resource.max;
                   updateCharacter({
                     feature_uses: {
@@ -1144,8 +1292,34 @@ export default function CharacterDetailPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => {
-                  // Short rest: restore some features
-                  console.log("Short rest");
+                  // Short rest: restore features that recharge on short rest
+                  const newFeatureUses: Record<string, { used: number; max: number }> = {};
+                  const allResources = [...classResources, ...featResources];
+                  
+                  // Restore resources that recharge on short rest
+                  for (const resource of allResources) {
+                    if (resource.rechargeOn === "short") {
+                      newFeatureUses[resource.name] = { used: 0, max: resource.max };
+                    } else {
+                      // Keep existing usage for long rest resources
+                      const existing = character.feature_uses?.[resource.name];
+                      if (existing) {
+                        newFeatureUses[resource.name] = existing;
+                      }
+                    }
+                  }
+                  
+                  // For warlocks, restore pact magic slots
+                  if (primaryClassName === "warlock") {
+                    updateCharacter({
+                      feature_uses: Object.keys(newFeatureUses).length > 0 ? newFeatureUses : undefined,
+                      spell_slots_used: {},
+                    });
+                  } else {
+                    updateCharacter({
+                      feature_uses: Object.keys(newFeatureUses).length > 0 ? newFeatureUses : character.feature_uses,
+                    });
+                  }
                 }}
                 className="flex-1 flex items-center justify-center gap-2 p-3 rounded-lg bg-blue-900/30 border border-blue-700/50 text-blue-400 hover:bg-blue-900/50 transition-colors"
               >
@@ -1154,17 +1328,28 @@ export default function CharacterDetailPage() {
               </button>
               <button
                 onClick={() => {
-                  // Long rest: restore HP and spell slots
+                  // Long rest: restore HP, spell slots, and all features
+                  const newFeatureUses: Record<string, { used: number; max: number }> = {};
+                  const allResources = [...classResources, ...featResources];
+                  
+                  // Restore all resources
+                  for (const resource of allResources) {
+                    newFeatureUses[resource.name] = { used: 0, max: resource.max };
+                  }
+                  
                   updateCharacter({
                     current_hp: character.max_hp,
                     temp_hp: 0,
                     spell_slots_used: {},
+                    feature_uses: Object.keys(newFeatureUses).length > 0 ? newFeatureUses : undefined,
                     exhaustion: Math.max(0, (character.exhaustion || 0) - 1),
+                    conditions: (character.conditions || []).filter(c => c !== "unconscious"),
+                    death_saves: { successes: 0, failures: 0 },
                   });
                 }}
                 className="flex-1 flex items-center justify-center gap-2 p-3 rounded-lg bg-purple-900/30 border border-purple-700/50 text-purple-400 hover:bg-purple-900/50 transition-colors"
               >
-                <Moon className="w-4 h-4" />
+                <Sun className="w-4 h-4" />
                 Long Rest
               </button>
             </div>
