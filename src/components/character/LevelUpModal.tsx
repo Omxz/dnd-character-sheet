@@ -54,6 +54,7 @@ interface LevelUpModalProps {
     spells_known?: { cantrips: string[]; spells: string[] };
     feats?: string[];
     class_feature_choices?: Record<string, string | string[]>;
+    spellbook?: string[];
   };
   onLevelUp: (updates: {
     level: number;
@@ -70,6 +71,7 @@ interface LevelUpModalProps {
     spells_known?: { cantrips: string[]; spells: string[] };
     feats?: string[];
     class_feature_choices?: Record<string, string | string[]>;
+    spellbook?: string[];
   }) => Promise<void>;
 }
 
@@ -127,6 +129,7 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
   const [allFeats, setAllFeats] = useState<FeatData[]>([]);
   const [featureChoicesAtLevel, setFeatureChoicesAtLevel] = useState<FeatureChoice[]>([]);
   const [featureChoiceSelections, setFeatureChoiceSelections] = useState<Record<string, string | string[]>>({});
+  const [newSpellbookSpells, setNewSpellbookSpells] = useState<string[]>([]);
 
   // Calculate level info
   const currentLevel = character.level;
@@ -134,6 +137,7 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
   const primaryClass = character.class_levels[0];
   const primaryClassName = primaryClass?.class?.split("|")[0]?.toLowerCase() || "";
   const newClassLevel = (primaryClass?.level || 0) + 1;
+  const isWizard = primaryClassName === "wizard";
 
   // What this level provides
   const hitDie = HIT_DICE[primaryClassName] || 8;
@@ -259,6 +263,7 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
     setNewSpells([]);
     setNewCantrips([]);
     setFeatureChoiceSelections({});
+    setNewSpellbookSpells([]);
   }, [isOpen, primaryClassName, newClassLevel, needsSubclass, isSpellcaster, newCantripsCount, newSpellsCount, maxSpellLevelAtNew, isAsiLevel]);
 
   // Build step list
@@ -289,10 +294,14 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
       s.push({ id: "spells", label: "Spells", icon: <Wand2 className="w-4 h-4" /> });
     }
 
+    if (isWizard && newClassLevel > 1) {
+      s.push({ id: "spellbook", label: "Spellbook", icon: <ScrollText className="w-4 h-4" /> });
+    }
+
     s.push({ id: "confirm", label: "Confirm", icon: <Check className="w-4 h-4" /> });
 
     return s;
-  }, [featuresAtLevel.length, needsSubclass, featureChoicesAtLevel.length, isAsiLevel, newCantripsCount, newSpellsCount, newSpellLevel]);
+  }, [featuresAtLevel.length, needsSubclass, featureChoicesAtLevel.length, isAsiLevel, newCantripsCount, newSpellsCount, newSpellLevel, isWizard, newClassLevel]);
 
   const currentStepData = steps[step];
 
@@ -339,10 +348,32 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
     }
   };
 
+  // Wizard spellbook selection
+  const toggleSpellbookSpell = (spellName: string) => {
+    if (newSpellbookSpells.includes(spellName)) {
+      setNewSpellbookSpells(newSpellbookSpells.filter(s => s !== spellName));
+    } else if (newSpellbookSpells.length < 2) {
+      setNewSpellbookSpells([...newSpellbookSpells, spellName]);
+    }
+  };
+
   // Validation
   const canProceed = () => {
     switch (currentStepData.id) {
       case "subclass": return !!selectedSubclass;
+      case "feature-choices": {
+        // Check all choices are complete
+        return featureChoicesAtLevel.every(choice => {
+          const choiceKey = choice.featureName.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+          const current = featureChoiceSelections[choiceKey];
+          if (choice.type === "single") {
+            return !!current;
+          } else {
+            const count = Array.isArray(current) ? current.length : current ? 1 : 0;
+            return count >= (choice.count || 1);
+          }
+        });
+      }
       case "hp": return hpRoll !== null;
       case "asi":
         if (asiChoice === "feat") return !!selectedFeat;
@@ -351,6 +382,8 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
       case "spells":
         return newCantrips.length === newCantripsCount &&
                (newSpellsCount === 0 || newSpells.length === newSpellsCount);
+      case "spellbook":
+        return newSpellbookSpells.length === 2;
       default: return true;
     }
   };
@@ -401,6 +434,18 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
         };
       }
 
+      if (Object.keys(featureChoiceSelections).length > 0) {
+        // Merge with existing choices
+        updates.class_feature_choices = {
+          ...(character.class_feature_choices || {}),
+          ...featureChoiceSelections,
+        };
+      }
+
+      if (newSpellbookSpells.length > 0) {
+        updates.spellbook = [...(character.spellbook || []), ...newSpellbookSpells];
+      }
+
       await onLevelUp(updates);
       onClose();
     } catch (err) {
@@ -410,16 +455,58 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
     }
   };
 
-  // Format entries
+  // Format entries - handles 5etools complex entry structures
   const formatEntries = (entries: unknown[]): string => {
+    if (!Array.isArray(entries)) return "";
+
     return entries
       .map(e => {
+        // Handle strings directly
         if (typeof e === "string") return e;
-        if (typeof e === "object" && e !== null && "entries" in e) {
-          return formatEntries((e as { entries: unknown[] }).entries);
+
+        // Handle all object types
+        if (typeof e === "object" && e !== null) {
+          const entry = e as Record<string, unknown>;
+
+          // Handle nested entries array (most common structure)
+          if ("entries" in entry && Array.isArray(entry.entries)) {
+            const name = "name" in entry && typeof entry.name === "string" ? entry.name + ": " : "";
+            return name + formatEntries(entry.entries);
+          }
+
+          // Handle entry + entrySummary objects
+          if ("entry" in entry) {
+            if (typeof entry.entry === "string") {
+              return entry.entry;
+            }
+            // Handle nested entry objects
+            if (typeof entry.entry === "object" && entry.entry !== null) {
+              return formatEntries([entry.entry]);
+            }
+          }
+
+          // Handle items arrays
+          if ("items" in entry && Array.isArray(entry.items)) {
+            return formatEntries(entry.items);
+          }
+
+          // Handle list structures
+          if ("type" in entry && entry.type === "list" && "items" in entry && Array.isArray(entry.items)) {
+            return formatEntries(entry.items);
+          }
+
+          // Handle table structures - skip them
+          if ("type" in entry && (entry.type === "table" || entry.type === "tableGroup")) {
+            return "[Table data]";
+          }
+
+          // Skip any other complex objects we can't render
+          return "";
         }
+
         return "";
       })
+      .filter(s => s.length > 0)
       .join("\n\n");
   };
 
@@ -592,6 +679,24 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Feature Choices */}
+          {currentStepData.id === "feature-choices" && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-amber-400" />
+                Class Feature Choices
+              </h3>
+              <p className="text-gray-400 text-sm">
+                Make your selections for class features at this level.
+              </p>
+              <FeatureChoiceContent
+                choices={featureChoicesAtLevel}
+                currentChoices={featureChoiceSelections}
+                onChange={setFeatureChoiceSelections}
+              />
             </div>
           )}
 
@@ -801,6 +906,57 @@ export function LevelUpModal({ isOpen, onClose, character, onLevelUp }: LevelUpM
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Wizard Spellbook */}
+          {currentStepData.id === "spellbook" && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <ScrollText className="w-5 h-5 text-cyan-400" />
+                Add Spells to Spellbook
+              </h3>
+              <p className="text-gray-400 text-sm">
+                As a wizard, you learn 2 new spells of your choice each time you level up.
+              </p>
+
+              <div>
+                <h4 className="font-medium mb-2">Choose 2 Wizard Spells ({newSpellbookSpells.length}/2)</h4>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((lvl) => {
+                    const spellsAtLvl = availableSpells.filter(s => s.level === lvl);
+                    if (spellsAtLvl.length === 0 || lvl > maxSpellLevelAtNew) return null;
+
+                    return (
+                      <div key={lvl}>
+                        <div className="text-xs uppercase text-gray-500 mb-1">Level {lvl}</div>
+                        <div className="grid grid-cols-2 gap-1">
+                          {spellsAtLvl.map((spell) => {
+                            const inSpellbook = character.spellbook?.includes(spell.name);
+                            const selected = newSpellbookSpells.includes(spell.name);
+                            return (
+                              <button
+                                key={spell.name}
+                                onClick={() => !inSpellbook && toggleSpellbookSpell(spell.name)}
+                                disabled={inSpellbook}
+                                className={cn(
+                                  "p-1.5 rounded border text-left text-xs transition-all",
+                                  inSpellbook ? "bg-gray-800/50 border-gray-700 text-gray-500 cursor-not-allowed"
+                                    : selected ? "bg-cyan-900/30 border-cyan-500"
+                                    : "bg-gray-800 border-gray-700 hover:border-gray-600"
+                                )}
+                              >
+                                {spell.name}
+                                {inSpellbook && <span className="text-xs text-gray-600 ml-1">(in book)</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 

@@ -2,6 +2,7 @@
 // Loads and parses spell data from 5etools format
 
 import spellsData from "@/data/5etools/spells-xphb.json";
+import { getSpellNamesForClass } from "./class-spell-lists";
 
 // ============================================
 // TYPES
@@ -383,7 +384,8 @@ export function getAllSpells(): SpellData[] {
  * Get spells for a specific class
  */
 export function getSpellsForClass(className: string): SpellData[] {
-  return getAllSpells().filter(s => s.classes.includes(className.toLowerCase()));
+  const classSpellNames = getSpellNamesForClass(className);
+  return getAllSpells().filter(s => classSpellNames.has(s.name.toLowerCase()));
 }
 
 /**

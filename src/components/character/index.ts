@@ -11,6 +11,7 @@ export * from "./FeatureChoiceModal";
 export * from "./HPBar";
 export * from "./LevelUpModal";
 export * from "./MulticlassManager";
+export * from "./PrepareSpellsInterface";
 export * from "./ResourceTracker";
 export * from "./SkillRow";
 export * from "./SpellCard";

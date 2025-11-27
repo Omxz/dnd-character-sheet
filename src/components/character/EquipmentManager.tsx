@@ -443,15 +443,17 @@ function EquipmentSection({
 
       {expanded && (
         <div className="space-y-1 ml-6">
-          {items.map((item) => {
-            const index = equipment.findIndex((e) => e === item || 
-              (e.name === item.name) || 
+          {items.map((item, itemIdx) => {
+            const index = equipment.findIndex((e) => e === item ||
+              (e.name === item.name) ||
               (e.item_key === item.item_key && item.item_key));
             const formatted = item.data ? formatItem(item.data) : null;
+            // Create unique key from item_key, name, or fallback to index
+            const uniqueKey = item.item_key || item.name || `item-${itemIdx}`;
 
             return (
               <div
-                key={index}
+                key={uniqueKey}
                 className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-800/50 group"
               >
                 <div className="flex-1 min-w-0">

@@ -244,12 +244,9 @@ export function getClassFeatures(className: string, maxLevel: number = 20) {
 
 // Helper to get spells for a class
 export function getSpellsForClass(className: string) {
-  const spells = getSpells();
-  return spells.filter(spell => 
-    spell.classes?.fromClassList?.some(
-      c => c.name.toLowerCase() === className.toLowerCase()
-    )
-  );
+  // Import the spell system which has the class mappings
+  const { getSpellsForClass: getSpellsWithMappings } = require("@/lib/spells");
+  return getSpellsWithMappings(className);
 }
 
 // Build lookup keys

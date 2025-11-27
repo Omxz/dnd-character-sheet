@@ -85,9 +85,9 @@ export function FeatPicker({ character, selectedFeat, onSelect }: FeatPickerProp
     return validation;
   }, [filteredFeats, character]);
 
-  // Parse selected feat details from entries
+  // Parse selected feat details from entries - handles 5etools complex structures
   const parseFeatEntries = (entries: unknown[]): string => {
-    if (!entries || entries.length === 0) return "";
+    if (!Array.isArray(entries) || entries.length === 0) return "";
 
     const parts: string[] = [];
 
@@ -95,11 +95,36 @@ export function FeatPicker({ character, selectedFeat, onSelect }: FeatPickerProp
       if (typeof entry === "string") {
         parts.push(entry);
       } else if (typeof entry === "object" && entry !== null) {
-        const obj = entry as { name?: string; entries?: unknown[]; type?: string };
-        if (obj.type === "entries" && obj.name) {
-          parts.push(`**${obj.name}:** ${parseFeatEntries(obj.entries || [])}`);
-        } else if (obj.entries) {
+        const obj = entry as Record<string, unknown>;
+
+        // Handle nested entries with name (feat benefits)
+        if (obj.type === "entries" && obj.name && typeof obj.name === "string") {
+          const nestedContent = Array.isArray(obj.entries) ? parseFeatEntries(obj.entries) : "";
+          parts.push(`**${obj.name}:** ${nestedContent}`);
+        }
+        // Handle nested entries without name
+        else if (Array.isArray(obj.entries)) {
           parts.push(parseFeatEntries(obj.entries));
+        }
+        // Handle entry + entrySummary objects
+        else if ("entry" in obj) {
+          if (typeof obj.entry === "string") {
+            parts.push(obj.entry);
+          } else if (typeof obj.entry === "object" && obj.entry !== null) {
+            parts.push(parseFeatEntries([obj.entry]));
+          }
+        }
+        // Handle items arrays
+        else if (Array.isArray(obj.items)) {
+          parts.push(parseFeatEntries(obj.items));
+        }
+        // Handle list structures
+        else if (obj.type === "list" && Array.isArray(obj.items)) {
+          parts.push(parseFeatEntries(obj.items));
+        }
+        // Handle table structures
+        else if (obj.type === "table" || obj.type === "tableGroup") {
+          parts.push("[Table data]");
         }
       }
     }
